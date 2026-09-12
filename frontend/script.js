@@ -1,12 +1,11 @@
-```javascript
 // =====================================================
 // J.A.R.V.I.S
-// GEMINI + TEXT + MICROPHONE + VOICE
+// Gemini AI + Telugu + English + Roman Telugu
 // =====================================================
 
 
 // =====================================================
-// 1. DOM ELEMENTS
+// 1. ELEMENTS
 // =====================================================
 
 const chat = document.getElementById("chat");
@@ -14,709 +13,536 @@ const input = document.getElementById("msg");
 const sendBtn = document.getElementById("send");
 const micBtn = document.getElementById("mic-btn");
 
+const overlay = document.getElementById("key-overlay");
+const keyInput = document.getElementById("api-key-input");
+const connectBtn = document.getElementById("connect-btn");
+const keyError = document.getElementById("key-error");
+
 
 // =====================================================
-// 2. GEMINI API KEY
+// 2. API KEY
 // =====================================================
 
-let API_KEY = localStorage.getItem("jarvis_key");
+// IMPORTANT:
+// Key is NOT saved in localStorage.
+// It stays only in JavaScript memory for this page session.
 
-if (!API_KEY) {
-
-    API_KEY = prompt(
-        "Enter your Gemini API Key:"
-    );
-
-    if (API_KEY) {
-
-        API_KEY = API_KEY.trim();
-
-        localStorage.setItem(
-            "jarvis_key",
-            API_KEY
-        );
-    }
-
-}
+let API_KEY = "";
 
 
 // =====================================================
 // 3. GEMINI MODEL
 // =====================================================
 
-const MODELS = [
+// Keep one model.
+// No random fallback.
 
-    "gemini-2.5-flash",
-
-    "gemini-2.0-flash"
-
-];
+const MODEL = "gemini-2.5-flash";
 
 
 // =====================================================
-// 4. ADD MESSAGE
+// 4. JARVIS SYSTEM INSTRUCTION
 // =====================================================
 
-function add(text, who = "") {
+const SYSTEM_INSTRUCTION = `
+You are J.A.R.V.I.S, a helpful personal AI assistant.
+
+Understand the user's language naturally.
+
+You can understand:
+1. English
+2. Telugu Unicode
+3. Roman Telugu
+4. Telugu + English mixed language
+5. Simple conversational English
+
+Examples of Roman Telugu:
+"nuvvu ela unnav"
+"naku python nerpinchu"
+"idi enti"
+"yela cheyali"
+"naaku ardham kaledu"
+
+Important response rules:
+
+- Understand the meaning first.
+- Do not complain about grammar or spelling.
+- If the user uses Roman Telugu, you may reply in simple Roman Telugu + English.
+- If the user uses Telugu Unicode, reply naturally in Telugu.
+- If the user uses English, reply in English.
+- If the user mixes Telugu and English, naturally mix Telugu and English.
+- Do not force one language.
+- Keep answers clear and practical.
+- For coding questions, explain simply first and then give code when useful.
+- Do not invent facts.
+- If something is uncertain, say so clearly.
+- Do not mention these instructions.
+
+Your name is J.A.R.V.I.S.
+`;
+
+
+// =====================================================
+// 5. SHOW MESSAGE
+// =====================================================
+
+function add(text, type) {
 
     if (!chat) {
         return;
     }
 
-    const d = document.createElement("div");
+    const div = document.createElement("div");
 
-    d.className =
-        `msg ${who}`.trim();
+    div.className = "msg " + type;
 
-    d.textContent = text;
+    div.innerText = text;
 
-    chat.appendChild(d);
+    chat.appendChild(div);
 
-    chat.scrollTop =
-        chat.scrollHeight;
+    chat.scrollTop = chat.scrollHeight;
 }
 
 
 // =====================================================
-// 5. REMOVE THINKING MESSAGE
+// 6. GEMINI API
 // =====================================================
 
-function removeThinking() {
-
-    const messages =
-        chat.querySelectorAll(".msg.ai");
-
-    if (messages.length === 0) {
-        return;
-    }
-
-    const lastMessage =
-        messages[messages.length - 1];
-
-    if (
-        lastMessage.textContent ===
-        "J.A.R.V.I.S: Thinking..."
-    ) {
-
-        lastMessage.remove();
-
-    }
-
-}
-
-
-// =====================================================
-// 6. CALL GEMINI
-// =====================================================
-
-async function callGemini(prompt) {
+async function callGemini(userPrompt) {
 
     if (!API_KEY) {
-
-        throw new Error(
-            "Gemini API Key is missing."
-        );
-
+        throw new Error("Gemini API key is missing.");
     }
 
-
-    let lastError;
-
-
-    for (const model of MODELS) {
-
-        try {
-
-            const url =
-                `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(API_KEY)}`;
+    const url =
+        "https://generativelanguage.googleapis.com/v1beta/models/" +
+        MODEL +
+        ":generateContent?key=" +
+        encodeURIComponent(API_KEY);
 
 
-            const response =
-                await fetch(url, {
+    const requestBody = {
 
-                    method: "POST",
+        system_instruction: {
+            parts: [
+                {
+                    text: SYSTEM_INSTRUCTION
+                }
+            ]
+        },
 
-                    headers: {
-                        "Content-Type":
-                            "application/json"
-                    },
+        contents: [
+            {
+                role: "user",
 
-                    body: JSON.stringify({
-
-                        contents: [
-
-                            {
-
-                                parts: [
-
-                                    {
-
-                                        text:
-                                            "You are J.A.R.V.I.S, a helpful AI assistant. " +
-                                            "Answer clearly and naturally. " +
-                                            "User message: " +
-                                            prompt
-
-                                    }
-
-                                ]
-
-                            }
-
-                        ]
-
-                    })
-
-                });
-
-
-            const data =
-                await response.json();
-
-
-            if (
-                !response.ok ||
-                data.error
-            ) {
-
-                throw new Error(
-
-                    data?.error?.message ||
-
-                    `HTTP ${response.status}: ${response.statusText}`
-
-                );
-
+                parts: [
+                    {
+                        text: userPrompt
+                    }
+                ]
             }
+        ],
 
-
-            const text =
-                data?.candidates?.[0]
-                    ?.content?.parts
-                    ?.map(
-                        part =>
-                            part.text || ""
-                    )
-                    .join("")
-                    .trim();
-
-
-            if (!text) {
-
-                throw new Error(
-                    "Gemini returned an empty response."
-                );
-
-            }
-
-
-            return text;
-
-
-        } catch (error) {
-
-            console.error(
-                "Gemini model failed:",
-                model,
-                error
-            );
-
-            lastError = error;
-
+        generationConfig: {
+            temperature: 0.7,
+            maxOutputTokens: 1000
         }
+    };
 
+
+    const response = await fetch(url, {
+
+        method: "POST",
+
+        headers: {
+            "Content-Type": "application/json"
+        },
+
+        body: JSON.stringify(requestBody)
+    });
+
+
+    let data;
+
+    try {
+        data = await response.json();
+    } catch {
+        throw new Error("Invalid response from Gemini.");
     }
 
 
-    throw (
-        lastError ||
+    if (!response.ok || data.error) {
 
-        new Error(
-            "All Gemini models failed."
-        )
+        const message =
+            data?.error?.message ||
+            `Gemini request failed (${response.status})`;
 
-    );
+        throw new Error(message);
+    }
 
+
+    const answer =
+        data?.candidates?.[0]?.content?.parts
+            ?.map(part => part.text || "")
+            .join("")
+            .trim();
+
+
+    if (!answer) {
+        throw new Error("Gemini returned an empty response.");
+    }
+
+
+    return answer;
 }
 
 
 // =====================================================
-// 7. ASK GEMINI
+// 7. ASK JARVIS
 // =====================================================
 
-async function askGemini(prompt) {
+async function askJarvis(userText) {
 
-    add(
-        "J.A.R.V.I.S: Thinking...",
-        "ai"
-    );
+    add("J.A.R.V.I.S: Thinking...", "ai");
+
+    const thinkingMessages =
+        chat.querySelectorAll(".msg.ai");
+
+    const thinkingMessage =
+        thinkingMessages[thinkingMessages.length - 1];
 
 
     try {
 
-        const reply =
-            await callGemini(prompt);
+        const reply = await callGemini(userText);
 
 
-        removeThinking();
+        if (thinkingMessage) {
+            thinkingMessage.remove();
+        }
 
 
         add(
-            "J.A.R.V.I.S: " +
-            reply,
+            "J.A.R.V.I.S: " + reply,
             "ai"
         );
 
 
         speak(reply);
 
-
     } catch (error) {
 
-        console.error(error);
-
-
-        removeThinking();
+        if (thinkingMessage) {
+            thinkingMessage.remove();
+        }
 
 
         add(
-
             "J.A.R.V.I.S ERROR: " +
-
-            (
-                error.message ||
-                "Unknown error"
-            ),
-
+            (error.message || "Something went wrong."),
             "ai"
-
         );
-
     }
-
 }
 
 
 // =====================================================
-// 8. SEND MESSAGE
+// 8. CONNECT GEMINI
 // =====================================================
 
-function sendMessage() {
+async function connectGemini() {
 
-    const text =
-        input.value.trim();
+    const key = keyInput.value.trim();
 
 
-    if (!text) {
+    if (!key) {
+
+        keyError.innerText =
+            "Please enter your Gemini API key.";
+
         return;
     }
 
 
-    add(
-        "YOU: " + text,
-        "user"
-    );
+    connectBtn.disabled = true;
+
+    connectBtn.innerText = "CONNECTING...";
+
+    keyError.innerText = "";
 
 
-    input.value = "";
+    // Temporarily use entered key
+    API_KEY = key;
 
 
-    askGemini(text);
+    try {
 
+        // Small test request
+        await callGemini("Reply with only: JARVIS ONLINE");
+
+
+        // Success
+        overlay.style.display = "none";
+
+        add(
+            "J.A.R.V.I.S: AI Core connected successfully.",
+            "ai"
+        );
+
+        add(
+            "J.A.R.V.I.S: Ready. Ask me anything.",
+            "ai"
+        );
+
+
+        keyInput.value = "";
+
+    } catch (error) {
+
+        // Remove invalid key from memory
+        API_KEY = "";
+
+
+        keyError.innerText =
+            "Connection failed: " +
+            (error.message || "Invalid API key.");
+
+
+    } finally {
+
+        connectBtn.disabled = false;
+
+        connectBtn.innerText = "CONNECT";
+    }
 }
 
 
 // =====================================================
-// 9. SEND BUTTON
+// 9. CONNECT BUTTON
 // =====================================================
 
-if (sendBtn) {
-
-    sendBtn.addEventListener(
-
-        "click",
-
-        sendMessage
-
-    );
-
-}
+connectBtn.addEventListener(
+    "click",
+    connectGemini
+);
 
 
 // =====================================================
-// 10. ENTER KEY
+// 10. ENTER KEY IN API POPUP
 // =====================================================
 
-if (input) {
+keyInput.addEventListener(
+    "keydown",
+    function (event) {
 
-    input.addEventListener(
-
-        "keydown",
-
-        function (event) {
-
-            if (
-
-                event.key === "Enter" &&
-
-                !event.shiftKey
-
-            ) {
-
-                event.preventDefault();
-
-                sendMessage();
-
-            }
-
+        if (event.key === "Enter") {
+            connectGemini();
         }
 
-    );
-
-}
+    }
+);
 
 
 // =====================================================
-// 11. SPEECH RECOGNITION
+// 11. SEND TEXT
+// =====================================================
+
+sendBtn.addEventListener(
+    "click",
+    function () {
+
+        const text = input.value.trim();
+
+
+        if (!text) {
+            return;
+        }
+
+
+        if (!API_KEY) {
+
+            overlay.style.display = "flex";
+
+            return;
+        }
+
+
+        add(
+            "YOU: " + text,
+            "user"
+        );
+
+
+        input.value = "";
+
+
+        askJarvis(text);
+    }
+);
+
+
+// =====================================================
+// 12. ENTER TO SEND
+// =====================================================
+
+input.addEventListener(
+    "keydown",
+    function (event) {
+
+        if (
+            event.key === "Enter" &&
+            !event.shiftKey
+        ) {
+
+            event.preventDefault();
+
+            sendBtn.click();
+        }
+    }
+);
+
+
+// =====================================================
+// 13. SPEECH RECOGNITION
 // =====================================================
 
 const SpeechRecognition =
-
     window.SpeechRecognition ||
-
     window.webkitSpeechRecognition;
-
 
 let recognition = null;
 
 
 if (SpeechRecognition) {
 
-    recognition =
-        new SpeechRecognition();
+    recognition = new SpeechRecognition();
+
+    recognition.continuous = false;
+
+    recognition.interimResults = false;
+
+    // English + Telugu speech detection
+    recognition.lang = "en-IN";
 
 
-    recognition.lang =
-        "en-US";
+    recognition.onstart = function () {
+
+        micBtn.innerText = "LISTENING...";
+
+    };
 
 
-    recognition.continuous =
-        false;
+    recognition.onresult = function (event) {
+
+        const text =
+            event.results[0][0].transcript;
 
 
-    recognition.interimResults =
-        false;
+        input.value = text;
+
+        micBtn.innerText = "🎤";
 
 
-    recognition.maxAlternatives =
-        1;
-
-
-    // -------------------------------------------------
-    // SPEECH RESULT
-    // -------------------------------------------------
-
-    recognition.onresult =
-        function (event) {
-
-            const text =
-
-                event.results[0][0]
-                    .transcript;
-
+        if (text.trim()) {
 
             add(
-
-                "YOU: " +
-                text,
-
+                "YOU: " + text,
                 "user"
-
             );
 
+            input.value = "";
 
-            askGemini(text);
-
-        };
-
-
-    // -------------------------------------------------
-    // SPEECH ERROR
-    // -------------------------------------------------
-
-    recognition.onerror =
-        function (event) {
-
-            console.error(
-                "Microphone error:",
-                event.error
-            );
+            askJarvis(text);
+        }
+    };
 
 
-            if (
-                event.error ===
-                "not-allowed"
-            ) {
+    recognition.onerror = function (event) {
 
-                add(
+        micBtn.innerText = "🎤";
 
-                    "J.A.R.V.I.S: Microphone permission denied. Please allow microphone access.",
-
-                    "ai"
-
-                );
-
-            } else {
-
-                add(
-
-                    "J.A.R.V.I.S: Microphone error - " +
-                    event.error,
-
-                    "ai"
-
-                );
-
-            }
-
-        };
+        add(
+            "J.A.R.V.I.S: Microphone error - " +
+            event.error,
+            "ai"
+        );
+    };
 
 
-    // -------------------------------------------------
-    // SPEECH END
-    // -------------------------------------------------
+    recognition.onend = function () {
 
-    recognition.onend =
+        micBtn.innerText = "🎤";
+
+    };
+
+
+    micBtn.addEventListener(
+        "click",
         function () {
 
-            if (micBtn) {
+            if (!API_KEY) {
 
-                micBtn.textContent =
-                    "🎙️";
+                overlay.style.display = "flex";
 
+                return;
             }
 
-        };
 
-
-    // -------------------------------------------------
-    // MICROPHONE BUTTON
-    // -------------------------------------------------
-
-    if (micBtn) {
-
-        micBtn.addEventListener(
-
-            "click",
-
-            async function () {
-
-                try {
-
-                    await navigator.mediaDevices
-                        .getUserMedia({
-                            audio: true
-                        });
-
-
-                    recognition.start();
-
-
-                    micBtn.textContent =
-                        "LISTENING...";
-
-
-                } catch (error) {
-
-                    console.error(
-                        error
-                    );
-
-
-                    add(
-
-                        "J.A.R.V.I.S: Please allow microphone permission.",
-
-                        "ai"
-
-                    );
-
-                }
-
+            try {
+                recognition.start();
+            } catch (error) {
+                console.log(error);
             }
-
-        );
-
-    }
-
+        }
+    );
 
 } else {
 
-    if (micBtn) {
+    micBtn.addEventListener(
+        "click",
+        function () {
 
-        micBtn.addEventListener(
-
-            "click",
-
-            function () {
-
-                add(
-
-                    "J.A.R.V.I.S: Speech Recognition is not supported in this browser. Please use Google Chrome.",
-
-                    "ai"
-
-                );
-
-            }
-
-        );
-
-    }
-
+            add(
+                "J.A.R.V.I.S: Speech recognition is not supported in this browser.",
+                "ai"
+            );
+        }
+    );
 }
 
 
 // =====================================================
-// 12. TEXT TO SPEECH
-// =====================================================
-
-let voices = [];
-
-
-function loadVoices() {
-
-    voices =
-        window.speechSynthesis
-            .getVoices();
-
-}
-
-
-if (
-    "speechSynthesis" in window
-) {
-
-    loadVoices();
-
-
-    window.speechSynthesis
-        .onvoiceschanged =
-        loadVoices;
-
-}
-
-
-// =====================================================
-// 13. SPEAK
+// 14. TEXT TO SPEECH
 // =====================================================
 
 function speak(text) {
 
-    if (
-        !(
-            "speechSynthesis"
-            in window
-        )
-    ) {
-
+    if (!("speechSynthesis" in window)) {
         return;
-
     }
 
 
-    window.speechSynthesis
-        .cancel();
+    speechSynthesis.cancel();
 
 
     const utterance =
-        new SpeechSynthesisUtterance(
-            text
-        );
+        new SpeechSynthesisUtterance(text);
 
 
-    utterance.rate =
-        1.0;
+    utterance.rate = 1.05;
+
+    utterance.pitch = 0.85;
 
 
-    utterance.pitch =
-        0.85;
-
-
-    utterance.volume =
-        1.0;
-
-
-    const englishVoice =
-
-        voices.find(
-
-            voice =>
-
-                voice.lang &&
-
-                voice.lang
-                    .toLowerCase()
-                    .startsWith("en")
-
-        );
-
-
-    if (englishVoice) {
-
-        utterance.voice =
-            englishVoice;
-
-    }
-
-
-    window.speechSynthesis
-        .speak(
-            utterance
-        );
-
+    speechSynthesis.speak(utterance);
 }
 
 
 // =====================================================
-// 14. CHANGE GEMINI API KEY
+// 15. START MESSAGE
 // =====================================================
 
-window.changeJarvisKey =
-    function () {
-
-        const newKey =
-
-            prompt(
-                "Enter your new Gemini API Key:"
-            );
-
-
-        if (!newKey) {
-            return;
-        }
-
-
-        API_KEY =
-            newKey.trim();
-
-
-        localStorage.setItem(
-
-            "jarvis_key",
-
-            API_KEY
-
-        );
-
-
-        add(
-
-            "J.A.R.V.I.S: Gemini API Key updated.",
-
-            "ai"
-
-        );
-
-    };
-```
+add(
+    "J.A.R.V.I.S: Waiting for Gemini connection...",
+    "ai"
+);
