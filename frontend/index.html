@@ -1,16 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8">
-
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0"
-  >
-
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>J.A.R.V.I.S</title>
-
   <link rel="stylesheet" href="style.css">
 </head>
 
@@ -21,19 +14,15 @@
     <p>MOBILE EDITION</p>
   </header>
 
-
   <div class="core">
     <div class="ring r1"></div>
     <div class="ring r2"></div>
     <div class="center"></div>
   </div>
 
-
   <p class="core-text">CORE ACTIVE</p>
 
-
   <div class="status">
-
     <h2>SYSTEM STATUS</h2>
 
     <div class="row">
@@ -48,25 +37,18 @@
 
     <div class="row">
       <span>VOICE</span>
-      <b class="off">● LOCKED</b>
+      <b class="on">● READY</b>
     </div>
 
     <div class="row">
       <span>MEMORY</span>
-      <b class="off">● LOCKED</b>
+      <b class="off">● SESSION</b>
     </div>
-
   </div>
 
-
-  <div
-    class="chat"
-    id="chat"
-  ></div>
-
+  <div class="chat" id="chat"></div>
 
   <div class="input-area">
-
     <input
       id="msg"
       type="text"
@@ -74,19 +56,46 @@
       autocomplete="off"
     >
 
-    <button
-      id="send"
-      type="button"
-    >
-      SEND
-    </button>
+    <button id="send" type="button">SEND</button>
 
-    <button
-      id="mic-btn"
-      type="button"
-    >
-      🎙️
-    </button>
+    <button id="mic-btn" type="button">🎤</button>
+  </div>
+
+
+  <!-- GEMINI API KEY POPUP -->
+
+  <div class="key-overlay" id="key-overlay">
+
+    <div class="key-box">
+
+      <div class="key-icon">⚡</div>
+
+      <h2>J.A.R.V.I.S</h2>
+
+      <p class="key-title">Gemini AI Connection</p>
+
+      <p class="key-info">
+        Enter your Gemini API key to connect the AI core.
+      </p>
+
+      <input
+        id="api-key-input"
+        type="password"
+        placeholder="Enter Gemini API Key"
+        autocomplete="off"
+      >
+
+      <p id="key-error"></p>
+
+      <button id="connect-btn" type="button">
+        CONNECT
+      </button>
+
+      <p class="key-note">
+        Your key is used only in this browser session.
+      </p>
+
+    </div>
 
   </div>
 
@@ -95,4 +104,3 @@
 
 </body>
 </html>
-```
