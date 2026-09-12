@@ -1,4 +1,4 @@
-
+```css
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap');
 
 * {
@@ -166,6 +166,7 @@ button:active {
 }
 
 @media (max-width: 480px) {
+
   body {
     padding: 16px;
   }
@@ -177,4 +178,6 @@ button:active {
   button {
     padding: 10px 12px;
   }
+
 }
+```
